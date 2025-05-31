@@ -1,0 +1,38 @@
+---
+description: When asked to create a plan file
+globs: 
+alwaysApply: false
+---
+# Planning and Task Management
+
+This project uses markdown files for planning and task management. The following conventions should be followed:
+
+## File Structure
+
+- `plan.md` - Main planning document
+- `TODO.md` - Current tasks and todos
+- `CHANGELOG.md` - Version history and changes
+
+## Task Format
+
+Tasks should be formatted as follows:
+
+```markdown
+## [Task Name]
+
+### Description
+Brief description of the task
+
+### Requirements
+- Requirement 1
+- Requirement 2
+
+### Implementation Notes
+- Note 1
+- Note 2
+
+### Status
+- [ ] Not Started
+- [ ] In Progress
+- [ ] Completed
+```
