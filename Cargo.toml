@@ -4,6 +4,15 @@ version = "0.1.0"
 edition = "2024"
 description = "A simple rust library to read log files."
 license = "MIT"
+exclude = ["fixtures/"]
 
 [dependencies]
 notify = "8.0.0"
+tokio = { version = "1.0", features = ["full"] }
+futures = "0.3"
+tokio-stream = "0.1"
+thiserror = "1.0"
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.0"

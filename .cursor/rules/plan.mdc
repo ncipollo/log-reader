@@ -3,36 +3,23 @@ description: When asked to create a plan file
 globs: 
 alwaysApply: false
 ---
-# Planning and Task Management
+# Plan
 
-This project uses markdown files for planning and task management. The following conventions should be followed:
+You may be asked to create a plan and then execute tasks. The following is guidance for that plan:
+- When asked to "create a plan", always create the plan file.
+- Always use markdown as a format.
+- You should create the plan within the root of the project.
+- A plan should have multiple markdown sections.
+- The first section should be overview of the plan.
+- Next section should be assumptions.
+- Last section should be the task list.
+- The user may request additional sections.
 
-## File Structure
+# Tasks Lists
 
-- `plan.md` - Main planning document
-- `TODO.md` - Current tasks and todos
-- `CHANGELOG.md` - Version history and changes
-
-## Task Format
-
-Tasks should be formatted as follows:
-
-```markdown
-## [Task Name]
-
-### Description
-Brief description of the task
-
-### Requirements
-- Requirement 1
-- Requirement 2
-
-### Implementation Notes
-- Note 1
-- Note 2
-
-### Status
-- [ ] Not Started
-- [ ] In Progress
-- [ ] Completed
-```
+You may be asked to create a task list and then execute tasks. The following is guidance for this task list:
+- You should create the task list within the root of the project.
+- The last task should always be "Delete this task list".
+- Always check off the task when you are done.
+- We should add a section to the task list which outlines assumptions we are making about our tasks.
+- We should also add a section which provides file structure information for the package we are working within.
