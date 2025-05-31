@@ -1,0 +1,8 @@
+[package]
+name = "log-reader"
+version = "0.1.0"
+edition = "2024"
+description = "A simple rust library to read log files."
+license = "MIT"
+
+[dependencies]
