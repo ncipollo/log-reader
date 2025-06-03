@@ -37,14 +37,16 @@ pub(crate) async fn read_file_content(
 
     // Read new content
     let mut new_content = String::new();
-    file.take(bytes_to_read).read_to_string(&mut new_content).await?;
+    file.take(bytes_to_read)
+        .read_to_string(&mut new_content)
+        .await?;
 
     // Update position
     *last_position = current_size;
 
     // Split by separator and send all parts
     let parts = split_and_filter_content(&new_content, separator);
-    
+
     for part in parts {
         if tx.send(Ok(part)).is_err() {
             // Receiver dropped, stop sending
@@ -94,7 +96,7 @@ mod tests {
     /// Helper function to collect all messages from the receiver
     async fn collect_messages(mut rx: mpsc::UnboundedReceiver<Result<String>>) -> Vec<String> {
         let mut messages = Vec::new();
-        
+
         // Use try_recv to avoid blocking - all messages should be available immediately
         while let Ok(result) = rx.try_recv() {
             match result {
@@ -102,7 +104,7 @@ mod tests {
                 Err(e) => panic!("Unexpected error: {}", e),
             }
         }
-        
+
         messages
     }
 
@@ -128,7 +130,7 @@ mod tests {
         assert_eq!(result, vec!["data1", "data2", "data3"]);
     }
 
-    #[test] 
+    #[test]
     fn test_split_and_filter_content_multi_char_separator() {
         let content = "part1<<>>part2<<>>part3<<>>";
         let result = split_and_filter_content(content, "<<>>");
@@ -191,7 +193,7 @@ mod tests {
             .expect("Should read file successfully");
 
         let messages = collect_messages(rx).await;
-        
+
         // Expected all 10 lines from the fixture
         let expected = vec![
             "2023-01-01 10:00:00 INFO Starting application",
@@ -205,9 +207,9 @@ mod tests {
             "2023-01-01 10:00:08 DEBUG Cache hit for key=user_data_123",
             "2023-01-01 10:00:09 INFO User authenticated successfully ",
         ];
-        
+
         assert_eq!(messages, expected);
-        
+
         // Position should be at the end of file
         let metadata = fs::metadata(&file_path).await.unwrap();
         assert_eq!(position, metadata.len());
@@ -224,12 +226,12 @@ mod tests {
             .expect("Should read file successfully");
 
         let messages = collect_messages(rx).await;
-        
+
         // Should split by pipe character
         assert!(messages.len() > 1);
         assert!(messages[0].contains("Starting application"));
         assert!(messages[1].contains("Loading configuration"));
-        
+
         let metadata = fs::metadata(&file_path).await.unwrap();
         assert_eq!(position, metadata.len());
     }
@@ -238,12 +240,15 @@ mod tests {
     async fn test_incremental_reading() {
         let file_path = PathBuf::from("fixtures/simple_append.log");
         let (tx, rx) = mpsc::unbounded_channel();
-        
+
         // First read - only read first 50 bytes to simulate partial reading
         let file = File::open(&file_path).await.unwrap();
         let first_chunk_size = 50;
         let mut content = String::new();
-        file.take(first_chunk_size).read_to_string(&mut content).await.unwrap();
+        file.take(first_chunk_size)
+            .read_to_string(&mut content)
+            .await
+            .unwrap();
         let mut position = first_chunk_size;
 
         // Now read from position 50 to end
@@ -252,7 +257,7 @@ mod tests {
             .expect("Should read remaining content");
 
         let messages = collect_messages(rx).await;
-        
+
         // Expected messages when reading from position 50 onwards
         let expected = vec![
             "-01-01 10:00:01 INFO Loading configuration",
@@ -265,9 +270,9 @@ mod tests {
             "2023-01-01 10:00:08 DEBUG Cache hit for key=user_data_123",
             "2023-01-01 10:00:09 INFO User authenticated successfully ",
         ];
-        
+
         assert_eq!(messages, expected);
-        
+
         // Position should be at end of file
         let metadata = fs::metadata(&file_path).await.unwrap();
         assert_eq!(position, metadata.len());
@@ -284,10 +289,10 @@ mod tests {
             .expect("Should handle truncation");
 
         let messages = collect_messages(rx).await;
-        
+
         // Should read all content from beginning due to truncation detection
         assert!(messages.len() > 0);
-        
+
         // Position should be reset and then set to end of file
         let metadata = fs::metadata(&file_path).await.unwrap();
         assert_eq!(position, metadata.len());
@@ -300,7 +305,7 @@ mod tests {
         let mut position = 0u64;
 
         let result = read_file_content(&file_path, &mut position, "\n", &tx).await;
-        
+
         // Should not error for non-existent file
         assert!(result.is_ok());
         assert_eq!(position, 0);
@@ -317,10 +322,10 @@ mod tests {
             .expect("Should handle empty file");
 
         let messages = collect_messages(rx).await;
-        
+
         // Empty file should produce no messages
         assert_eq!(messages.len(), 0);
-        
+
         // Position should match file size (which is minimal for empty file)
         let metadata = fs::metadata(&file_path).await.unwrap();
         assert_eq!(position, metadata.len());
@@ -330,7 +335,7 @@ mod tests {
     async fn test_no_new_content_when_position_at_end() {
         let file_path = PathBuf::from("fixtures/simple_append.log");
         let (tx, rx) = mpsc::unbounded_channel();
-        
+
         // Set position to file size (at end)
         let metadata = fs::metadata(&file_path).await.unwrap();
         let mut position = metadata.len();
@@ -340,7 +345,7 @@ mod tests {
             .expect("Should handle no new content");
 
         let messages = collect_messages(rx).await;
-        
+
         // Should produce no messages when already at end
         assert_eq!(messages.len(), 0);
         assert_eq!(position, metadata.len());
@@ -364,8 +369,10 @@ mod tests {
     async fn test_filters_empty_lines() {
         // Create a temporary file with empty lines
         let temp_file = "test_empty_lines.tmp";
-        fs::write(temp_file, "line1\n\n\nline2\n  \n\nline3\n").await.unwrap();
-        
+        fs::write(temp_file, "line1\n\n\nline2\n  \n\nline3\n")
+            .await
+            .unwrap();
+
         let file_path = PathBuf::from(temp_file);
         let (tx, rx) = mpsc::unbounded_channel();
         let mut position = 0u64;
@@ -375,13 +382,13 @@ mod tests {
             .expect("Should read file successfully");
 
         let messages = collect_messages(rx).await;
-        
+
         // Should only get non-empty lines
         assert_eq!(messages.len(), 3);
         assert_eq!(messages[0], "line1");
         assert_eq!(messages[1], "line2");
         assert_eq!(messages[2], "line3");
-        
+
         // Clean up
         fs::remove_file(temp_file).await.unwrap();
     }
@@ -391,7 +398,7 @@ mod tests {
         let temp_file = "test_utf8_valid.tmp";
         let utf8_content = "Hello 世界\nUnicode: 🦀\n日本語テスト\n";
         fs::write(temp_file, utf8_content).await.unwrap();
-        
+
         let file_path = PathBuf::from(temp_file);
         let (tx, rx) = mpsc::unbounded_channel();
         let mut position = 0u64;
@@ -401,12 +408,12 @@ mod tests {
             .expect("Should read UTF-8 content successfully");
 
         let messages = collect_messages(rx).await;
-        
+
         assert_eq!(messages.len(), 3);
         assert_eq!(messages[0], "Hello 世界");
         assert_eq!(messages[1], "Unicode: 🦀");
         assert_eq!(messages[2], "日本語テスト");
-        
+
         // Clean up
         fs::remove_file(temp_file).await.unwrap();
     }
@@ -414,14 +421,14 @@ mod tests {
     #[tokio::test]
     async fn test_large_file_reading() {
         let temp_file = "test_large_file.tmp";
-        
+
         // Create a large file with many lines
         let mut large_content = String::new();
         for i in 0..1000 {
             large_content.push_str(&format!("Line number {}\n", i));
         }
         fs::write(temp_file, &large_content).await.unwrap();
-        
+
         let file_path = PathBuf::from(temp_file);
         let (tx, rx) = mpsc::unbounded_channel();
         let mut position = 0u64;
@@ -431,12 +438,12 @@ mod tests {
             .expect("Should read large file successfully");
 
         let messages = collect_messages(rx).await;
-        
+
         // Should get all 1000 lines
         assert_eq!(messages.len(), 1000);
         assert_eq!(messages[0], "Line number 0");
         assert_eq!(messages[999], "Line number 999");
-        
+
         // Clean up
         fs::remove_file(temp_file).await.unwrap();
     }
@@ -444,12 +451,12 @@ mod tests {
     #[tokio::test]
     async fn test_file_with_very_long_lines() {
         let temp_file = "test_long_lines.tmp";
-        
+
         // Create a file with very long lines
         let long_line = "A".repeat(10000);
         let content = format!("{}\n{}\n", long_line, "short line");
         fs::write(temp_file, &content).await.unwrap();
-        
+
         let file_path = PathBuf::from(temp_file);
         let (tx, rx) = mpsc::unbounded_channel();
         let mut position = 0u64;
@@ -459,12 +466,12 @@ mod tests {
             .expect("Should read file with long lines successfully");
 
         let messages = collect_messages(rx).await;
-        
+
         assert_eq!(messages.len(), 2);
         assert_eq!(messages[0].len(), 10000);
         assert!(messages[0].chars().all(|c| c == 'A'));
         assert_eq!(messages[1], "short line");
-        
+
         // Clean up
         fs::remove_file(temp_file).await.unwrap();
     }
@@ -472,11 +479,11 @@ mod tests {
     #[tokio::test]
     async fn test_binary_like_content_handling() {
         let temp_file = "test_binary_content.tmp";
-        
+
         // Create content with null bytes and other binary-like data
         let content = "line1\nline with \0 null byte\nline3\n";
         fs::write(temp_file, content).await.unwrap();
-        
+
         let file_path = PathBuf::from(temp_file);
         let (tx, rx) = mpsc::unbounded_channel();
         let mut position = 0u64;
@@ -486,12 +493,12 @@ mod tests {
             .expect("Should read binary-like content successfully");
 
         let messages = collect_messages(rx).await;
-        
+
         assert_eq!(messages.len(), 3);
         assert_eq!(messages[0], "line1");
         assert!(messages[1].contains("null byte"));
         assert_eq!(messages[2], "line3");
-        
+
         // Clean up
         fs::remove_file(temp_file).await.unwrap();
     }
@@ -499,33 +506,37 @@ mod tests {
     #[tokio::test]
     async fn test_concurrent_reading_attempts() {
         let file_path = PathBuf::from("fixtures/simple_append.log");
-        
+
         // Spawn multiple concurrent reading tasks
         let mut handles = Vec::new();
-        
+
         for i in 0..5 {
             let path = file_path.clone();
             let handle = tokio::spawn(async move {
                 let (tx, rx) = mpsc::unbounded_channel();
                 let mut position = 0u64;
-                
+
                 read_file_content(&path, &mut position, "\n", &tx)
                     .await
                     .expect("Should read file successfully");
-                
+
                 let messages = collect_messages(rx).await;
                 (i, messages.len())
             });
             handles.push(handle);
         }
-        
+
         // Wait for all tasks to complete
         let results: Vec<_> = futures::future::join_all(handles).await;
-        
+
         // All tasks should complete successfully
         for result in results {
             let (task_id, message_count) = result.unwrap();
-            assert!(message_count > 0, "Task {} should have read some messages", task_id);
+            assert!(
+                message_count > 0,
+                "Task {} should have read some messages",
+                task_id
+            );
         }
     }
 
@@ -535,17 +546,17 @@ mod tests {
         let content = "\nline1\nline2";
         let result = split_and_filter_content(content, "\n");
         assert_eq!(result, vec!["line1", "line2"]);
-        
+
         // Test with separator at the end
         let content = "line1\nline2\n";
         let result = split_and_filter_content(content, "\n");
         assert_eq!(result, vec!["line1", "line2"]);
-        
+
         // Test with repeated separators
         let content = "line1\n\n\n\nline2";
         let result = split_and_filter_content(content, "\n");
         assert_eq!(result, vec!["line1", "line2"]);
-        
+
         // Test with whitespace-only content between separators
         let content = "line1\n   \n\t\n  \nline2";
         let result = split_and_filter_content(content, "\n");
@@ -556,11 +567,11 @@ mod tests {
     fn test_position_calculation_edge_cases() {
         // Test with zero values
         assert_eq!(calculate_bytes_to_read(0, 0), None);
-        
+
         // Test with large values
         assert_eq!(calculate_bytes_to_read(u64::MAX, u64::MAX - 1), Some(1));
         assert_eq!(calculate_bytes_to_read(u64::MAX - 1, u64::MAX), None);
-        
+
         // Test boundary conditions
         assert_eq!(calculate_bytes_to_read(1, 0), Some(1));
         assert_eq!(calculate_bytes_to_read(0, 1), None);
@@ -570,13 +581,13 @@ mod tests {
     fn test_file_truncation_edge_cases() {
         // Test with equal sizes
         assert!(!detect_file_truncation(100, 100));
-        
+
         // Test with zero values
         assert!(!detect_file_truncation(0, 0));
         assert!(detect_file_truncation(0, 1));
-        
+
         // Test with large values
         assert!(detect_file_truncation(u64::MAX - 1, u64::MAX));
         assert!(!detect_file_truncation(u64::MAX, u64::MAX - 1));
     }
-} 
+}

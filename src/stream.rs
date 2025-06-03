@@ -139,23 +139,24 @@ impl Stream for LogStream {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio_stream::StreamExt;
     use std::time::Duration;
+    use tokio_stream::StreamExt;
 
     #[tokio::test]
     async fn test_log_stream_creation() {
         let stream = LogStream::new("fixtures/simple_append.log", None).await;
         assert!(stream.is_ok());
-        
+
         let stream = stream.unwrap();
         assert!(!stream.is_closed());
     }
 
     #[tokio::test]
     async fn test_log_stream_creation_with_custom_separator() {
-        let stream = LogStream::new("fixtures/different_separators.log", Some("|".to_string())).await;
+        let stream =
+            LogStream::new("fixtures/different_separators.log", Some("|".to_string())).await;
         assert!(stream.is_ok());
-        
+
         let stream = stream.unwrap();
         assert!(!stream.is_closed());
     }
@@ -164,62 +165,72 @@ mod tests {
     async fn test_log_stream_creation_nonexistent_file() {
         let stream = LogStream::new("fixtures/nonexistent.log", None).await;
         assert!(stream.is_ok());
-        
+
         let stream = stream.unwrap();
         assert!(!stream.is_closed());
     }
 
     #[tokio::test]
     async fn test_log_stream_graceful_shutdown_on_drop() {
-        let mut stream = LogStream::new("fixtures/simple_append.log", None).await.unwrap();
-        
+        let mut stream = LogStream::new("fixtures/simple_append.log", None)
+            .await
+            .unwrap();
+
         // Consume one item to ensure the stream is active
         let first_item = tokio::time::timeout(Duration::from_millis(100), stream.next()).await;
         assert!(first_item.is_ok());
-        
+
         // Drop the stream
         drop(stream);
-        
+
         // Give background task time to shut down
         tokio::time::sleep(Duration::from_millis(10)).await;
-        
+
         // Test passes if we reach here without hanging
     }
 
     #[tokio::test]
     async fn test_log_stream_multiple_streams_independence() {
-        let stream1 = LogStream::new("fixtures/simple_append.log", None).await.unwrap();
-        let stream2 = LogStream::new("fixtures/simple_append.log", None).await.unwrap();
-        
+        let stream1 = LogStream::new("fixtures/simple_append.log", None)
+            .await
+            .unwrap();
+        let stream2 = LogStream::new("fixtures/simple_append.log", None)
+            .await
+            .unwrap();
+
         assert!(!stream1.is_closed());
         assert!(!stream2.is_closed());
-        
+
         // Drop first stream
         drop(stream1);
-        
+
         // Second stream should still be functional
         assert!(!stream2.is_closed());
-        
+
         drop(stream2);
     }
 
     #[tokio::test]
     async fn test_log_stream_reading_existing_content() {
-        let mut stream = LogStream::new("fixtures/simple_append.log", None).await.unwrap();
-        
+        let mut stream = LogStream::new("fixtures/simple_append.log", None)
+            .await
+            .unwrap();
+
         // Should immediately yield existing content
         let items = collect_stream_items(&mut stream, 5, Duration::from_millis(100)).await;
-        
+
         assert!(!items.is_empty());
         assert!(items[0].contains("Starting application"));
     }
 
     #[tokio::test]
     async fn test_log_stream_with_custom_separator() {
-        let mut stream = LogStream::new("fixtures/different_separators.log", Some("|".to_string())).await.unwrap();
-        
+        let mut stream = LogStream::new("fixtures/different_separators.log", Some("|".to_string()))
+            .await
+            .unwrap();
+
         let items = collect_stream_items(&mut stream, 3, Duration::from_millis(100)).await;
-        
+
         assert!(!items.is_empty());
         // Should split by pipe character
         assert!(items.len() > 1);
@@ -228,7 +239,7 @@ mod tests {
     #[tokio::test]
     async fn test_log_stream_empty_file() {
         let mut stream = LogStream::new("fixtures/empty.log", None).await.unwrap();
-        
+
         // Empty file should not yield any items immediately
         let items = collect_stream_items(&mut stream, 1, Duration::from_millis(50)).await;
         assert!(items.is_empty());
@@ -242,9 +253,10 @@ mod tests {
         let (shutdown_tx, shutdown_rx) = broadcast::channel(1);
 
         // Start the task
-        let task_handle = tokio::spawn(async move {
-            file_reader_task(file_path, separator, tx, shutdown_rx).await
-        });
+        let task_handle =
+            tokio::spawn(
+                async move { file_reader_task(file_path, separator, tx, shutdown_rx).await },
+            );
 
         // Let it run briefly
         tokio::time::sleep(Duration::from_millis(10)).await;
@@ -274,10 +286,10 @@ mod tests {
 
         // Task should handle invalid paths gracefully
         let result = file_reader_task(file_path, separator, tx, shutdown_rx).await;
-        
+
         // Task should complete without panicking
         assert!(result.is_ok() || result.is_err());
-        
+
         // Check if any error messages were sent
         while rx.try_recv().is_ok() {
             // Consume any messages
@@ -297,8 +309,8 @@ mod tests {
             match tokio::time::timeout(Duration::from_millis(10), stream.next()).await {
                 Ok(Some(Ok(item))) => items.push(item),
                 Ok(Some(Err(_))) => break, // Error occurred
-                Ok(None) => break, // Stream ended
-                Err(_) => break, // Timeout
+                Ok(None) => break,         // Stream ended
+                Err(_) => break,           // Timeout
             }
         }
 

@@ -30,25 +30,34 @@ async fn collect_stream_items<T>(
 #[tokio::test]
 async fn test_watch_existing_file_happy_path() {
     let fixture_path = Path::new("fixtures/simple_append.log");
-    
+
     // Skip test if fixture doesn't exist
     if !fixture_path.exists() {
-        eprintln!("Skipping test: fixture file '{}' doesn't exist", fixture_path.display());
+        eprintln!(
+            "Skipping test: fixture file '{}' doesn't exist",
+            fixture_path.display()
+        );
         return;
     }
 
     let stream = watch_log(fixture_path, None).await.unwrap();
-    
+
     // Collect initial items (should get existing content)
     // Use minimal timeout to avoid delays
     let items = collect_stream_items(stream, Duration::from_millis(100)).await;
-    
+
     // Should have read some content from the existing file
-    assert!(!items.is_empty(), "Should have read some content from existing file");
-    
+    assert!(
+        !items.is_empty(),
+        "Should have read some content from existing file"
+    );
+
     // Check that we got valid results (not checking specific content, just that it worked)
     let successful_reads = items.iter().filter(|item| item.is_ok()).count();
-    assert!(successful_reads > 0, "Should have successfully read some lines");
+    assert!(
+        successful_reads > 0,
+        "Should have successfully read some lines"
+    );
 }
 
 #[tokio::test]

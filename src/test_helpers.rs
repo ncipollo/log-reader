@@ -19,10 +19,10 @@ impl TempLogFile {
     pub fn new() -> std::io::Result<Self> {
         let temp_dir = tempfile::tempdir()?;
         let path = temp_dir.path().join("test.log");
-        
+
         // Create the file
         File::create(&path)?;
-        
+
         Ok(Self {
             path,
             _temp_dir: temp_dir,
@@ -38,10 +38,8 @@ impl TempLogFile {
 
     /// Append content to the temporary log file
     pub fn append_content(&self, content: &str) -> std::io::Result<()> {
-        let mut file = OpenOptions::new()
-            .append(true)
-            .open(&self.path)?;
-        
+        let mut file = OpenOptions::new().append(true).open(&self.path)?;
+
         writeln!(file, "{}", content)?;
         file.flush()?;
         Ok(())
@@ -73,7 +71,7 @@ mod tests {
     async fn test_temp_log_file_with_content() {
         let content = "test line";
         let temp_file = TempLogFile::with_content(content).unwrap();
-        
+
         let file_content = std::fs::read_to_string(temp_file.path()).unwrap();
         assert!(file_content.contains(content));
     }
@@ -83,7 +81,7 @@ mod tests {
         let temp_file = TempLogFile::new().unwrap();
         temp_file.append_content("line 1").unwrap();
         temp_file.append_content("line 2").unwrap();
-        
+
         let content = std::fs::read_to_string(temp_file.path()).unwrap();
         assert!(content.contains("line 1"));
         assert!(content.contains("line 2"));
@@ -93,8 +91,8 @@ mod tests {
     async fn test_truncate() {
         let temp_file = TempLogFile::with_content("initial content").unwrap();
         temp_file.truncate().unwrap();
-        
+
         let content = std::fs::read_to_string(temp_file.path()).unwrap();
         assert!(content.is_empty());
     }
-} 
+}

@@ -16,7 +16,7 @@ impl FileWatcher {
     /// Creates a new file watcher for the specified path.
     pub(crate) fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
-        
+
         let (tx, rx) = mpsc::unbounded_channel();
 
         let watcher = RecommendedWatcher::new(
@@ -37,7 +37,8 @@ impl FileWatcher {
     /// Starts watching the file for changes.
     pub(crate) fn start_watching(&mut self) -> Result<()> {
         let watch_path = self.file_path.parent().unwrap_or(&self.file_path);
-        self._watcher.watch(watch_path, RecursiveMode::NonRecursive)?;
+        self._watcher
+            .watch(watch_path, RecursiveMode::NonRecursive)?;
         Ok(())
     }
 
@@ -45,7 +46,7 @@ impl FileWatcher {
     pub(crate) async fn next_event(&mut self) -> Option<notify::Result<Event>> {
         self.receiver.recv().await
     }
-    
+
     #[cfg(test)]
     pub fn file_path(&self) -> &Path {
         &self.file_path
@@ -64,14 +65,14 @@ pub(crate) fn is_event_relevant_to_file(event: &Event, target_file_name: &str) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use notify::{EventKind, Event};
+    use notify::{Event, EventKind};
     use std::path::PathBuf;
 
     #[test]
     fn test_file_watcher_creation() {
         let file_path = PathBuf::from("/tmp/test.log");
         let watcher = FileWatcher::new(&file_path);
-        
+
         assert!(watcher.is_ok());
         let watcher = watcher.unwrap();
         assert_eq!(watcher.file_path(), file_path.as_path());
@@ -81,7 +82,7 @@ mod tests {
     fn test_file_watcher_with_relative_path() {
         let file_path = PathBuf::from("test.log");
         let watcher = FileWatcher::new(&file_path);
-        
+
         assert!(watcher.is_ok());
         let watcher = watcher.unwrap();
         assert_eq!(watcher.file_path(), file_path.as_path());
@@ -91,7 +92,7 @@ mod tests {
     fn test_file_watcher_with_nested_path() {
         let file_path = PathBuf::from("/var/log/app/test.log");
         let watcher = FileWatcher::new(&file_path);
-        
+
         assert!(watcher.is_ok());
         let watcher = watcher.unwrap();
         assert_eq!(watcher.file_path(), file_path.as_path());
@@ -100,11 +101,13 @@ mod tests {
     #[test]
     fn test_is_event_relevant_to_file_exact_match() {
         let event = Event {
-            kind: EventKind::Modify(notify::event::ModifyKind::Data(notify::event::DataChange::Content)),
+            kind: EventKind::Modify(notify::event::ModifyKind::Data(
+                notify::event::DataChange::Content,
+            )),
             paths: vec![PathBuf::from("/tmp/test.log")],
             attrs: Default::default(),
         };
-        
+
         assert!(is_event_relevant_to_file(&event, "test.log"));
         assert!(!is_event_relevant_to_file(&event, "other.log"));
     }
@@ -112,7 +115,9 @@ mod tests {
     #[test]
     fn test_is_event_relevant_to_file_multiple_paths() {
         let event = Event {
-            kind: EventKind::Modify(notify::event::ModifyKind::Data(notify::event::DataChange::Content)),
+            kind: EventKind::Modify(notify::event::ModifyKind::Data(
+                notify::event::DataChange::Content,
+            )),
             paths: vec![
                 PathBuf::from("/tmp/other.log"),
                 PathBuf::from("/tmp/test.log"),
@@ -120,7 +125,7 @@ mod tests {
             ],
             attrs: Default::default(),
         };
-        
+
         assert!(is_event_relevant_to_file(&event, "test.log"));
         assert!(is_event_relevant_to_file(&event, "other.log"));
         assert!(is_event_relevant_to_file(&event, "another.log"));
@@ -130,14 +135,16 @@ mod tests {
     #[test]
     fn test_is_event_relevant_to_file_different_directories() {
         let event = Event {
-            kind: EventKind::Modify(notify::event::ModifyKind::Data(notify::event::DataChange::Content)),
+            kind: EventKind::Modify(notify::event::ModifyKind::Data(
+                notify::event::DataChange::Content,
+            )),
             paths: vec![
                 PathBuf::from("/var/log/test.log"),
                 PathBuf::from("/tmp/test.log"),
             ],
             attrs: Default::default(),
         };
-        
+
         // Should match both files with same name but different directories
         assert!(is_event_relevant_to_file(&event, "test.log"));
     }
@@ -145,46 +152,54 @@ mod tests {
     #[test]
     fn test_is_event_relevant_to_file_no_file_name() {
         let event = Event {
-            kind: EventKind::Modify(notify::event::ModifyKind::Data(notify::event::DataChange::Content)),
+            kind: EventKind::Modify(notify::event::ModifyKind::Data(
+                notify::event::DataChange::Content,
+            )),
             paths: vec![PathBuf::from("/")], // Root directory has no file name
             attrs: Default::default(),
         };
-        
+
         assert!(!is_event_relevant_to_file(&event, "test.log"));
     }
 
     #[test]
     fn test_is_event_relevant_to_file_empty_paths() {
         let event = Event {
-            kind: EventKind::Modify(notify::event::ModifyKind::Data(notify::event::DataChange::Content)),
+            kind: EventKind::Modify(notify::event::ModifyKind::Data(
+                notify::event::DataChange::Content,
+            )),
             paths: vec![],
             attrs: Default::default(),
         };
-        
+
         assert!(!is_event_relevant_to_file(&event, "test.log"));
     }
 
     #[test]
     fn test_is_event_relevant_to_file_case_sensitivity() {
         let event = Event {
-            kind: EventKind::Modify(notify::event::ModifyKind::Data(notify::event::DataChange::Content)),
+            kind: EventKind::Modify(notify::event::ModifyKind::Data(
+                notify::event::DataChange::Content,
+            )),
             paths: vec![PathBuf::from("/tmp/Test.Log")],
             attrs: Default::default(),
         };
-        
+
         // Should be case sensitive
         assert!(!is_event_relevant_to_file(&event, "test.log"));
         assert!(is_event_relevant_to_file(&event, "Test.Log"));
     }
 
-    #[test] 
+    #[test]
     fn test_is_event_relevant_to_file_special_characters() {
         let event = Event {
-            kind: EventKind::Modify(notify::event::ModifyKind::Data(notify::event::DataChange::Content)),
+            kind: EventKind::Modify(notify::event::ModifyKind::Data(
+                notify::event::DataChange::Content,
+            )),
             paths: vec![PathBuf::from("/tmp/app-test_file.log")],
             attrs: Default::default(),
         };
-        
+
         assert!(is_event_relevant_to_file(&event, "app-test_file.log"));
         assert!(!is_event_relevant_to_file(&event, "app-test-file.log"));
     }
@@ -193,7 +208,7 @@ mod tests {
     async fn test_file_watcher_start_watching_existing_file() {
         let file_path = PathBuf::from("fixtures/simple_append.log");
         let mut watcher = FileWatcher::new(&file_path).unwrap();
-        
+
         let result = watcher.start_watching();
         assert!(result.is_ok());
     }
@@ -202,7 +217,7 @@ mod tests {
     async fn test_file_watcher_start_watching_nonexistent_file() {
         let file_path = PathBuf::from("fixtures/nonexistent.log");
         let mut watcher = FileWatcher::new(&file_path).unwrap();
-        
+
         // Should not fail even if file doesn't exist, as we watch the directory
         let result = watcher.start_watching();
         assert!(result.is_ok());
@@ -212,25 +227,25 @@ mod tests {
     async fn test_file_watcher_start_watching_file_without_parent() {
         let file_path = PathBuf::from("test.log");
         let mut watcher = FileWatcher::new(&file_path).unwrap();
-        
+
         // Should handle files in current directory
         // Note: This might fail if the current directory doesn't exist or isn't accessible
         let result = watcher.start_watching();
-        
+
         // On some systems, watching current directory might not be allowed
         // So we accept either success or a specific kind of failure
         match result {
-            Ok(_) => {}, // Success case
+            Ok(_) => {} // Success case
             Err(crate::error::Error::Watcher(notify_error)) => {
                 // Accept certain types of watcher errors as expected
                 match notify_error.kind {
-                    notify::ErrorKind::Generic(_) | 
-                    notify::ErrorKind::Io(_) | 
-                    notify::ErrorKind::PathNotFound => {},
+                    notify::ErrorKind::Generic(_)
+                    | notify::ErrorKind::Io(_)
+                    | notify::ErrorKind::PathNotFound => {}
                     _ => panic!("Unexpected notify error: {:?}", notify_error),
                 }
-            },
+            }
             Err(e) => panic!("Unexpected error type: {:?}", e),
         }
     }
-} 
+}
