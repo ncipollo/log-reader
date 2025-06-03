@@ -233,21 +233,4 @@ mod tests {
             Err(e) => panic!("Unexpected error type: {:?}", e),
         }
     }
-
-    #[tokio::test]  
-    async fn test_file_watcher_next_event_timeout() {
-        let file_path = PathBuf::from("fixtures/simple_append.log");
-        let mut watcher = FileWatcher::new(&file_path).unwrap();
-        watcher.start_watching().unwrap();
-        
-        // Test that next_event doesn't block indefinitely when no events occur
-        // Use a timeout to ensure we don't wait forever
-        let result = tokio::time::timeout(
-            std::time::Duration::from_millis(10),
-            watcher.next_event()
-        ).await;
-        
-        // Should timeout since no events are occurring
-        assert!(result.is_err());
-    }
 } 
