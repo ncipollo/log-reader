@@ -12,7 +12,7 @@ use tokio::task::JoinHandle;
 
 /// A stream that monitors a file for changes and yields new content.
 pub struct LogStream {
-    receiver: mpsc::UnboundedReceiver<Result<String>>,
+    receiver: mpsc::UnboundedReceiver<Result<Vec<String>>>,
     _shutdown_tx: broadcast::Sender<()>,
     _task_handle: JoinHandle<()>,
 }
@@ -68,7 +68,7 @@ impl Drop for LogStream {
 async fn file_reader_task(
     file_path: PathBuf,
     separator: String,
-    tx: mpsc::UnboundedSender<Result<String>>,
+    tx: mpsc::UnboundedSender<Result<Vec<String>>>,
     mut shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<()> {
     let mut last_position = 0u64;
@@ -129,7 +129,7 @@ async fn file_reader_task(
 }
 
 impl Stream for LogStream {
-    type Item = Result<String>;
+    type Item = Result<Vec<String>>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         Pin::new(&mut self.receiver).poll_recv(cx)
@@ -220,7 +220,9 @@ mod tests {
         let items = collect_stream_items(&mut stream, 5, Duration::from_millis(100)).await;
 
         assert!(!items.is_empty());
-        assert!(items[0].contains("Starting application"));
+        // Now we get Vec<String> items, so check the first Vec contains the expected content
+        assert!(items[0].len() > 0);
+        assert!(items[0][0].contains("Starting application"));
     }
 
     #[tokio::test]
@@ -232,8 +234,10 @@ mod tests {
         let items = collect_stream_items(&mut stream, 3, Duration::from_millis(100)).await;
 
         assert!(!items.is_empty());
-        // Should split by pipe character
-        assert!(items.len() > 1);
+        // Should split by pipe character - now we get one Vec<String> with multiple parts
+        assert_eq!(items.len(), 1);
+        let lines = &items[0];
+        assert!(lines.len() > 1);
     }
 
     #[tokio::test]
@@ -301,7 +305,7 @@ mod tests {
         stream: &mut LogStream,
         max_items: usize,
         timeout: Duration,
-    ) -> Vec<String> {
+    ) -> Vec<Vec<String>> {
         let mut items = Vec::new();
         let start = tokio::time::Instant::now();
 

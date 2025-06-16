@@ -17,9 +17,13 @@ async fn main() {
     match watch_log(file_path, None).await {
         Ok(mut stream) => {
             println!("Watching file: {}", file_path);
-            while let Some(line_result) = stream.next().await {
-                match line_result {
-                    Ok(content) => println!("{}", content),
+            while let Some(lines_result) = stream.next().await {
+                match lines_result {
+                    Ok(lines) => {
+                        for line in lines {
+                            println!("{}", line);
+                        }
+                    },
                     Err(e) => {
                         eprintln!("Error reading file: {}", e);
                         process::exit(1);

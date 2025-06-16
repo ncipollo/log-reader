@@ -13,9 +13,13 @@
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut stream = watch_log("app.log", None).await?;
 //!     
-//!     while let Some(line) = stream.next().await {
-//!         match line {
-//!             Ok(content) => println!("New content: {}", content),
+//!     while let Some(lines) = stream.next().await {
+//!         match lines {
+//!             Ok(content) => {
+//!                 for line in content {
+//!                     println!("New line: {}", line);
+//!                 }
+//!             }
 //!             Err(e) => eprintln!("Error: {}", e),
 //!         }
 //!     }
@@ -57,8 +61,10 @@ use tokio_stream::Stream;
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let mut stream = watch_log("app.log", None).await?;
 ///     
-///     while let Some(line) = stream.next().await {
-///         println!("New content: {}", line?);
+///     while let Some(lines) = stream.next().await {
+///         for line in lines? {
+///             println!("New line: {}", line);
+///         }
 ///     }
 ///     
 ///     Ok(())
@@ -67,7 +73,7 @@ use tokio_stream::Stream;
 pub async fn watch_log<P: AsRef<Path>>(
     path: P,
     separator: Option<String>,
-) -> Result<impl Stream<Item = Result<String>>> {
+) -> Result<impl Stream<Item = Result<Vec<String>>>> {
     LogStream::new(path, separator).await
 }
 

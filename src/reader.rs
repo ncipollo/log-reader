@@ -11,7 +11,7 @@ pub(crate) async fn read_file_content(
     file_path: &Path,
     last_position: &mut u64,
     separator: &str,
-    tx: &mpsc::UnboundedSender<Result<String>>,
+    tx: &mpsc::UnboundedSender<Result<Vec<String>>>,
 ) -> Result<()> {
     if !file_path.exists() {
         return Ok(());
@@ -44,11 +44,12 @@ pub(crate) async fn read_file_content(
     // Update position
     *last_position = current_size;
 
-    // Split by separator and send all parts
+    // Split by separator and collect all parts into a Vec
     let parts = split_and_filter_content(&new_content, separator);
 
-    for part in parts {
-        if tx.send(Ok(part)).is_err() {
+    // Send the entire Vec if it's not empty
+    if !parts.is_empty() {
+        if tx.send(Ok(parts)).is_err() {
             // Receiver dropped, stop sending
             return Ok(());
         }
@@ -94,7 +95,7 @@ mod tests {
     use tokio::sync::mpsc;
 
     /// Helper function to collect all messages from the receiver
-    async fn collect_messages(mut rx: mpsc::UnboundedReceiver<Result<String>>) -> Vec<String> {
+    async fn collect_messages(mut rx: mpsc::UnboundedReceiver<Result<Vec<String>>>) -> Vec<Vec<String>> {
         let mut messages = Vec::new();
 
         // Use try_recv to avoid blocking - all messages should be available immediately
@@ -194,21 +195,26 @@ mod tests {
 
         let messages = collect_messages(rx).await;
 
+        // Should have received exactly one Vec<String> with all lines
+        assert_eq!(messages.len(), 1);
+        
+        let lines = &messages[0];
+        
         // Expected all 10 lines from the fixture
         let expected = vec![
-            "2023-01-01 10:00:00 INFO Starting application",
-            "2023-01-01 10:00:01 INFO Loading configuration",
-            "2023-01-01 10:00:02 INFO Database connection established",
-            "2023-01-01 10:00:03 DEBUG User session created for user_id=123",
-            "2023-01-01 10:00:04 INFO Application ready to serve requests",
-            "2023-01-01 10:00:05 WARN High memory usage detected: 85%",
-            "2023-01-01 10:00:06 ERROR Failed to process request: timeout",
-            "2023-01-01 10:00:07 INFO Request processed successfully",
-            "2023-01-01 10:00:08 DEBUG Cache hit for key=user_data_123",
-            "2023-01-01 10:00:09 INFO User authenticated successfully ",
+            "2023-01-01 10:00:00 INFO Starting application".to_string(),
+            "2023-01-01 10:00:01 INFO Loading configuration".to_string(),
+            "2023-01-01 10:00:02 INFO Database connection established".to_string(),
+            "2023-01-01 10:00:03 DEBUG User session created for user_id=123".to_string(),
+            "2023-01-01 10:00:04 INFO Application ready to serve requests".to_string(),
+            "2023-01-01 10:00:05 WARN High memory usage detected: 85%".to_string(),
+            "2023-01-01 10:00:06 ERROR Failed to process request: timeout".to_string(),
+            "2023-01-01 10:00:07 INFO Request processed successfully".to_string(),
+            "2023-01-01 10:00:08 DEBUG Cache hit for key=user_data_123".to_string(),
+            "2023-01-01 10:00:09 INFO User authenticated successfully ".to_string(),
         ];
 
-        assert_eq!(messages, expected);
+        assert_eq!(lines, &expected);
 
         // Position should be at the end of file
         let metadata = fs::metadata(&file_path).await.unwrap();
@@ -227,10 +233,15 @@ mod tests {
 
         let messages = collect_messages(rx).await;
 
+        // Should have received exactly one Vec<String> with all parts
+        assert_eq!(messages.len(), 1);
+        
+        let lines = &messages[0];
+        
         // Should split by pipe character
-        assert!(messages.len() > 1);
-        assert!(messages[0].contains("Starting application"));
-        assert!(messages[1].contains("Loading configuration"));
+        assert!(lines.len() > 1);
+        assert!(lines[0].contains("Starting application"));
+        assert!(lines[1].contains("Loading configuration"));
 
         let metadata = fs::metadata(&file_path).await.unwrap();
         assert_eq!(position, metadata.len());
@@ -258,20 +269,25 @@ mod tests {
 
         let messages = collect_messages(rx).await;
 
+        // Should have received exactly one Vec<String> with remaining lines
+        assert_eq!(messages.len(), 1);
+        
+        let lines = &messages[0];
+        
         // Expected messages when reading from position 50 onwards
         let expected = vec![
-            "-01-01 10:00:01 INFO Loading configuration",
-            "2023-01-01 10:00:02 INFO Database connection established",
-            "2023-01-01 10:00:03 DEBUG User session created for user_id=123",
-            "2023-01-01 10:00:04 INFO Application ready to serve requests",
-            "2023-01-01 10:00:05 WARN High memory usage detected: 85%",
-            "2023-01-01 10:00:06 ERROR Failed to process request: timeout",
-            "2023-01-01 10:00:07 INFO Request processed successfully",
-            "2023-01-01 10:00:08 DEBUG Cache hit for key=user_data_123",
-            "2023-01-01 10:00:09 INFO User authenticated successfully ",
+            "-01-01 10:00:01 INFO Loading configuration".to_string(),
+            "2023-01-01 10:00:02 INFO Database connection established".to_string(),
+            "2023-01-01 10:00:03 DEBUG User session created for user_id=123".to_string(),
+            "2023-01-01 10:00:04 INFO Application ready to serve requests".to_string(),
+            "2023-01-01 10:00:05 WARN High memory usage detected: 85%".to_string(),
+            "2023-01-01 10:00:06 ERROR Failed to process request: timeout".to_string(),
+            "2023-01-01 10:00:07 INFO Request processed successfully".to_string(),
+            "2023-01-01 10:00:08 DEBUG Cache hit for key=user_data_123".to_string(),
+            "2023-01-01 10:00:09 INFO User authenticated successfully ".to_string(),
         ];
 
-        assert_eq!(messages, expected);
+        assert_eq!(lines, &expected);
 
         // Position should be at end of file
         let metadata = fs::metadata(&file_path).await.unwrap();
@@ -383,11 +399,13 @@ mod tests {
 
         let messages = collect_messages(rx).await;
 
-        // Should only get non-empty lines
-        assert_eq!(messages.len(), 3);
-        assert_eq!(messages[0], "line1");
-        assert_eq!(messages[1], "line2");
-        assert_eq!(messages[2], "line3");
+        // Should only get non-empty lines - one Vec<String> with 3 lines
+        assert_eq!(messages.len(), 1);
+        let lines = &messages[0];
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0], "line1");
+        assert_eq!(lines[1], "line2");
+        assert_eq!(lines[2], "line3");
 
         // Clean up
         fs::remove_file(temp_file).await.unwrap();
@@ -409,10 +427,12 @@ mod tests {
 
         let messages = collect_messages(rx).await;
 
-        assert_eq!(messages.len(), 3);
-        assert_eq!(messages[0], "Hello 世界");
-        assert_eq!(messages[1], "Unicode: 🦀");
-        assert_eq!(messages[2], "日本語テスト");
+        assert_eq!(messages.len(), 1);
+        let lines = &messages[0];
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0], "Hello 世界");
+        assert_eq!(lines[1], "Unicode: 🦀");
+        assert_eq!(lines[2], "日本語テスト");
 
         // Clean up
         fs::remove_file(temp_file).await.unwrap();
@@ -439,10 +459,12 @@ mod tests {
 
         let messages = collect_messages(rx).await;
 
-        // Should get all 1000 lines
-        assert_eq!(messages.len(), 1000);
-        assert_eq!(messages[0], "Line number 0");
-        assert_eq!(messages[999], "Line number 999");
+        // Should get all 1000 lines in one Vec
+        assert_eq!(messages.len(), 1);
+        let lines = &messages[0];
+        assert_eq!(lines.len(), 1000);
+        assert_eq!(lines[0], "Line number 0");
+        assert_eq!(lines[999], "Line number 999");
 
         // Clean up
         fs::remove_file(temp_file).await.unwrap();
@@ -467,10 +489,12 @@ mod tests {
 
         let messages = collect_messages(rx).await;
 
-        assert_eq!(messages.len(), 2);
-        assert_eq!(messages[0].len(), 10000);
-        assert!(messages[0].chars().all(|c| c == 'A'));
-        assert_eq!(messages[1], "short line");
+        assert_eq!(messages.len(), 1);
+        let lines = &messages[0];
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0].len(), 10000);
+        assert!(lines[0].chars().all(|c| c == 'A'));
+        assert_eq!(lines[1], "short line");
 
         // Clean up
         fs::remove_file(temp_file).await.unwrap();
@@ -494,10 +518,12 @@ mod tests {
 
         let messages = collect_messages(rx).await;
 
-        assert_eq!(messages.len(), 3);
-        assert_eq!(messages[0], "line1");
-        assert!(messages[1].contains("null byte"));
-        assert_eq!(messages[2], "line3");
+        assert_eq!(messages.len(), 1);
+        let lines = &messages[0];
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0], "line1");
+        assert!(lines[1].contains("null byte"));
+        assert_eq!(lines[2], "line3");
 
         // Clean up
         fs::remove_file(temp_file).await.unwrap();
