@@ -2,7 +2,7 @@
 name = "log-reader"
 version = "0.2.0"
 edition = "2024"
-description = "A simple rust library to read log files."
+description = "A Rust library for real-time log file monitoring that emits batched content as Vec<String>."
 license = "MIT"
 exclude = ["fixtures/"]
 
