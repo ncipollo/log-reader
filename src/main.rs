@@ -23,7 +23,7 @@ async fn main() {
                         for line in lines {
                             println!("{}", line);
                         }
-                    },
+                    }
                     Err(e) => {
                         eprintln!("Error reading file: {}", e);
                         process::exit(1);

@@ -92,7 +92,9 @@ mod tests {
     use tokio::sync::mpsc;
 
     /// Helper function to collect all messages from the receiver
-    async fn collect_messages(mut rx: mpsc::UnboundedReceiver<Result<Vec<String>>>) -> Vec<Vec<String>> {
+    async fn collect_messages(
+        mut rx: mpsc::UnboundedReceiver<Result<Vec<String>>>,
+    ) -> Vec<Vec<String>> {
         let mut messages = Vec::new();
 
         // Use try_recv to avoid blocking - all messages should be available immediately
@@ -194,9 +196,9 @@ mod tests {
 
         // Should have received exactly one Vec<String> with all lines
         assert_eq!(messages.len(), 1);
-        
+
         let lines = &messages[0];
-        
+
         // Expected all 10 lines from the fixture
         let expected = vec![
             "2023-01-01 10:00:00 INFO Starting application".to_string(),
@@ -232,9 +234,9 @@ mod tests {
 
         // Should have received exactly one Vec<String> with all parts
         assert_eq!(messages.len(), 1);
-        
+
         let lines = &messages[0];
-        
+
         // Should split by pipe character
         assert!(lines.len() > 1);
         assert!(lines[0].contains("Starting application"));
@@ -268,9 +270,9 @@ mod tests {
 
         // Should have received exactly one Vec<String> with remaining lines
         assert_eq!(messages.len(), 1);
-        
+
         let lines = &messages[0];
-        
+
         // Expected messages when reading from position 50 onwards
         let expected = vec![
             "-01-01 10:00:01 INFO Loading configuration".to_string(),
