@@ -1,6 +1,6 @@
 [package]
 name = "log-reader"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 description = "A Rust library for real-time log file monitoring that emits batched content as Vec<String>."
 license = "MIT"
