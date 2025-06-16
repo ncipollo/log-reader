@@ -49,10 +49,7 @@ pub(crate) async fn read_file_content(
 
     // Send the entire Vec if it's not empty
     if !parts.is_empty() {
-        if tx.send(Ok(parts)).is_err() {
-            // Receiver dropped, stop sending
-            return Ok(());
-        }
+        let _ = tx.send(Ok(parts));
     }
 
     Ok(())
